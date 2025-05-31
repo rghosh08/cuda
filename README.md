@@ -1,5 +1,5 @@
 # CUDA Programming 
-""People who are really serious about software should make their own hardware." Alan Kay
+"People who are really serious about software should make their own hardware." Alan Kay
 
 ## Thread Hierarchy
 
