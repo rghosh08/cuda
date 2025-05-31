@@ -21,7 +21,7 @@ int main() {
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> diff = end-start;
 
-    std::cout << "Time taken (C++ CPU): " << diff.count() << " seconds\n";
+    std::cout << "Time taken: " << diff.count() << " seconds\n";
     return 0;
 }
 
