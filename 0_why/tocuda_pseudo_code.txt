@@ -1,0 +1,14 @@
+time without CUDA: 10.021937131881714 seconds
+time with CUDA: 4.9203574657440186 seconds
+
+Tensor Tensor::toCUDA() {
+    // allocate CUDA GPU memory
+    void* gpu_memory;
+    cudaMalloc(&gpu_memory, this->numel() * sizeof(float));
+
+    // copy CPU data to GPU
+    cudaMemcpy(gpu_memory, this->data(), this->numel() * sizeof(float), cudaMemcpyHostToDevice);
+
+    // create new tensor on GPU
+    return Tensor(gpu_memory, device='cuda');
+}
