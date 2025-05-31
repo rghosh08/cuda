@@ -1,0 +1,5 @@
+Scale factor: 0.007874
+Original[0]: 0.000000, Dequantized[0]: 0.000000
+Original[100]: -0.506366, Dequantized[100]: -0.503937
+Scale factor: 0.007874
+Time taken: 0.1734 milliseconds

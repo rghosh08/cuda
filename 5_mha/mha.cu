@@ -7,57 +7,81 @@
 #define NUM_HEADS 8
 #define HEAD_DIM (EMBED_DIM / NUM_HEADS)
 
-// Compute attention scores: (Q*K^T) per head
-__global__ void attention_scores(float* Q, float* K, float* scores) {
+// Kernel: Compute scaled dot-product attention scores
+__global__ void attention_scores(const float* Q, const float* K, float* scores, int seq_len) {
     int head = blockIdx.x;
     int q_idx = blockIdx.y;
     int k_idx = threadIdx.x;
 
-    if (head < NUM_HEADS && q_idx < SEQ_LEN && k_idx < SEQ_LEN) {
+    if (k_idx < seq_len) {
         float score = 0.0f;
         int q_offset = q_idx * EMBED_DIM + head * HEAD_DIM;
         int k_offset = k_idx * EMBED_DIM + head * HEAD_DIM;
 
-        for (int d = 0; d < HEAD_DIM; d++) {
+        for (int d = 0; d < HEAD_DIM; ++d)
             score += Q[q_offset + d] * K[k_offset + d];
-        }
 
-        int idx = head * SEQ_LEN * SEQ_LEN + q_idx * SEQ_LEN + k_idx;
+        int idx = head * seq_len * seq_len + q_idx * seq_len + k_idx;
         scores[idx] = score / sqrtf(HEAD_DIM);
     }
 }
 
-// Compute softmax per head
-__global__ void softmax(float* scores, float* softmax_out) {
+// Optimized parallel softmax kernel
+__global__ void softmax(float* scores, float* softmax_out, int seq_len) {
     int head = blockIdx.x;
     int q_idx = blockIdx.y;
+    int tid = threadIdx.x;
+    extern __shared__ float sdata[];
 
-    if (head < NUM_HEADS && q_idx < SEQ_LEN) {
-        int offset = head * SEQ_LEN * SEQ_LEN + q_idx * SEQ_LEN;
+    int offset = head * seq_len * seq_len + q_idx * seq_len;
 
-        float max_val = -1e9;
-        for (int i = 0; i < SEQ_LEN; i++)
-            max_val = fmaxf(max_val, scores[offset + i]);
+    // Find max value
+    float max_val = -INFINITY;
+    for (int i = tid; i < seq_len; i += blockDim.x)
+        max_val = fmaxf(max_val, scores[offset + i]);
 
-        float sum = 0.0f;
-        for (int i = 0; i < SEQ_LEN; i++)
-            sum += expf(scores[offset + i] - max_val);
+    sdata[tid] = max_val;
+    __syncthreads();
 
-        for (int i = 0; i < SEQ_LEN; i++)
-            softmax_out[offset + i] = expf(scores[offset + i] - max_val) / sum;
+    for (int s = blockDim.x / 2; s > 0; s >>= 1) {
+        if (tid < s)
+            sdata[tid] = fmaxf(sdata[tid], sdata[tid + s]);
+        __syncthreads();
     }
+    max_val = sdata[0];
+    __syncthreads();
+
+    // Compute sum
+    float sum = 0.0f;
+    for (int i = tid; i < seq_len; i += blockDim.x)
+        sum += expf(scores[offset + i] - max_val);
+
+    sdata[tid] = sum;
+    __syncthreads();
+
+    for (int s = blockDim.x / 2; s > 0; s >>= 1) {
+        if (tid < s)
+            sdata[tid] += sdata[tid + s];
+        __syncthreads();
+    }
+    sum = sdata[0];
+    __syncthreads();
+
+    // Final softmax output
+    for (int i = tid; i < seq_len; i += blockDim.x)
+        softmax_out[offset + i] = expf(scores[offset + i] - max_val) / sum;
 }
 
-// Compute final attention output
-__global__ void attention_output(float* softmax_out, float* V, float* output) {
+// Compute attention output
+__global__ void attention_output(const float* softmax_out, const float* V, float* output, int seq_len) {
     int q_idx = blockIdx.x;
     int head = blockIdx.y;
     int dim = threadIdx.x;
 
-    if (q_idx < SEQ_LEN && head < NUM_HEADS && dim < HEAD_DIM) {
+    if (dim < HEAD_DIM) {
         float val = 0.0f;
-        for (int k_idx = 0; k_idx < SEQ_LEN; k_idx++) {
-            int softmax_idx = head * SEQ_LEN * SEQ_LEN + q_idx * SEQ_LEN + k_idx;
+        for (int k_idx = 0; k_idx < seq_len; ++k_idx) {
+            int softmax_idx = head * seq_len * seq_len + q_idx * seq_len + k_idx;
             int v_idx = k_idx * EMBED_DIM + head * HEAD_DIM + dim;
             val += softmax_out[softmax_idx] * V[v_idx];
         }
@@ -68,59 +92,46 @@ __global__ void attention_output(float* softmax_out, float* V, float* output) {
 }
 
 int main() {
-    size_t qkv_size = SEQ_LEN * EMBED_DIM * sizeof(float);
+    size_t tensor_size = SEQ_LEN * EMBED_DIM * sizeof(float);
     size_t scores_size = NUM_HEADS * SEQ_LEN * SEQ_LEN * sizeof(float);
 
-    // Allocate GPU memory
     float *Q, *K, *V, *scores, *softmax_out, *output;
-    cudaMalloc(&Q, qkv_size);
-    cudaMalloc(&K, qkv_size);
-    cudaMalloc(&V, qkv_size);
+    cudaMalloc(&Q, tensor_size);
+    cudaMalloc(&K, tensor_size);
+    cudaMalloc(&V, tensor_size);
     cudaMalloc(&scores, scores_size);
     cudaMalloc(&softmax_out, scores_size);
-    cudaMalloc(&output, qkv_size);
+    cudaMalloc(&output, tensor_size);
 
-    // Initialize host Q,K,V (dummy data)
-    float host_Q[SEQ_LEN * EMBED_DIM];
-    float host_K[SEQ_LEN * EMBED_DIM];
-    float host_V[SEQ_LEN * EMBED_DIM];
+    float h_Q[SEQ_LEN * EMBED_DIM], h_K[SEQ_LEN * EMBED_DIM], h_V[SEQ_LEN * EMBED_DIM];
     for (int i = 0; i < SEQ_LEN * EMBED_DIM; i++) {
-        host_Q[i] = 0.01f;
-        host_K[i] = 0.02f;
-        host_V[i] = 0.03f;
+        h_Q[i] = 0.01f; h_K[i] = 0.02f; h_V[i] = 0.03f;
     }
 
-    cudaMemcpy(Q, host_Q, qkv_size, cudaMemcpyHostToDevice);
-    cudaMemcpy(K, host_K, qkv_size, cudaMemcpyHostToDevice);
-    cudaMemcpy(V, host_V, qkv_size, cudaMemcpyHostToDevice);
+    cudaMemcpy(Q, h_Q, tensor_size, cudaMemcpyHostToDevice);
+    cudaMemcpy(K, h_K, tensor_size, cudaMemcpyHostToDevice);
+    cudaMemcpy(V, h_V, tensor_size, cudaMemcpyHostToDevice);
 
-    // Compute attention scores
     dim3 grid_scores(NUM_HEADS, SEQ_LEN);
-    attention_scores<<<grid_scores, SEQ_LEN>>>(Q, K, scores);
-    cudaDeviceSynchronize();
+    attention_scores<<<grid_scores, SEQ_LEN>>>(Q, K, scores, SEQ_LEN);
 
-    // Softmax normalization
     dim3 grid_softmax(NUM_HEADS, SEQ_LEN);
-    softmax<<<grid_softmax, 1>>>(scores, softmax_out);
-    cudaDeviceSynchronize();
+    softmax<<<grid_softmax, 128, 128 * sizeof(float)>>>(scores, softmax_out, SEQ_LEN);
 
-    // Compute attention output
     dim3 grid_output(SEQ_LEN, NUM_HEADS);
-    attention_output<<<grid_output, HEAD_DIM>>>(softmax_out, V, output);
+    attention_output<<<grid_output, HEAD_DIM>>>(softmax_out, V, output, SEQ_LEN);
+
     cudaDeviceSynchronize();
 
-    // Verify (copy back some outputs)
-    float host_output[SEQ_LEN * EMBED_DIM];
-    cudaMemcpy(host_output, output, qkv_size, cudaMemcpyDeviceToHost);
+    float h_output[SEQ_LEN * EMBED_DIM];
+    cudaMemcpy(h_output, output, tensor_size, cudaMemcpyDeviceToHost);
 
-    printf("Output [0,0]: %.4f\n", host_output[0]);
-    printf("Output [0,1]: %.4f\n", host_output[1]);
-    printf("Output [0,64]: %.4f\n", host_output[64]);  // Next head start
+    printf("Output[0]: %.4f\n", h_output[0]);
+    printf("Output[1]: %.4f\n", h_output[1]);
+    printf("Output[64]: %.4f\n", h_output[64]);
 
-    // Cleanup
     cudaFree(Q); cudaFree(K); cudaFree(V);
     cudaFree(scores); cudaFree(softmax_out); cudaFree(output);
 
     return 0;
 }
-

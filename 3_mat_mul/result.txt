@@ -1,0 +1,2 @@
+Matrix multiplication completed in: 0.7065 milliseconds
+Sample output C[0]: 2048.00

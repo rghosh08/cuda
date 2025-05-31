@@ -1,0 +1,3 @@
+Attention output at [0,0]: 0.0300
+Attention output at [0,1]: 0.0300
+Attention output at [1,0]: 0.0300

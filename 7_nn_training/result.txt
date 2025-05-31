@@ -1,0 +1,11 @@
+Epoch 1 - Loss: 0.31462941 - Predicted: 0.803258
+Epoch 100 - Loss: 0.00074614 - Predicted: 0.048630
+Epoch 200 - Loss: 0.00011334 - Predicted: 0.025056
+Epoch 300 - Loss: 0.00003315 - Predicted: 0.018142
+Epoch 400 - Loss: 0.00001246 - Predicted: 0.014992
+Epoch 500 - Loss: 0.00000533 - Predicted: 0.013264
+Epoch 600 - Loss: 0.00000245 - Predicted: 0.012215
+Epoch 700 - Loss: 0.00000118 - Predicted: 0.011539
+Epoch 800 - Loss: 0.00000059 - Predicted: 0.011087
+Epoch 900 - Loss: 0.00000030 - Predicted: 0.010775
+Epoch 1000 - Loss: 0.00000016 - Predicted: 0.010557
