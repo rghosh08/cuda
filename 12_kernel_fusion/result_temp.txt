@@ -1,0 +1,32 @@
+Starting kernel fusion demo with temperature monitoring...
+Initial GPU temperature: 46°C
+
+Running non-fused kernels 50 times...
+  Run 0/50 - Temp: 47°C
+  Run 10/50 - Temp: 47°C
+  Run 20/50 - Temp: 48°C
+  Run 30/50 - Temp: 48°C
+  Run 40/50 - Temp: 48°C
+Non-fused peak temperature: 48°C (Δ1°C)
+Non-fused total time: 97.506 ms
+
+Cooling down...
+Running fused kernel 50 times...
+  Run 0/50 - Temp: 47°C
+  Run 10/50 - Temp: 47°C
+  Run 20/50 - Temp: 47°C
+  Run 30/50 - Temp: 47°C
+  Run 40/50 - Temp: 47°C
+Fused peak temperature: 47°C (Δ0°C)
+Fused total time: 46.589 ms
+
+=== Performance Summary ===
+Non-fused time: 97.506 ms (1.95 ms per run)
+Fused time: 46.589 ms (0.93 ms per run)
+Speedup: 2.09x
+Max error: 0.000000e+00
+
+=== Temperature Summary ===
+Non-fused peak temp: 48°C
+Fused peak temp: 47°C
+Temperature difference: 1°C

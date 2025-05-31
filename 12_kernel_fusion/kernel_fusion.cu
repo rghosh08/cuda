@@ -1,10 +1,49 @@
-// CUDA Kernel Fusion Example
+// CUDA Kernel Fusion Example with Temperature Monitoring
 // This demonstrates fusing multiple operations into a single kernel
 // to reduce memory bandwidth and improve performance
 
 #include <cuda_runtime.h>
 #include <stdio.h>
 #include <math.h>
+#include <nvml.h>
+#include <thread>
+#include <chrono>
+#include <atomic>
+
+// Temperature monitoring globals
+std::atomic<bool> keep_monitoring(true);
+std::atomic<float> current_temp(0.0f);
+std::atomic<float> max_temp(0.0f);
+
+// Function to monitor temperature in background
+void monitor_temperature(int device_id) {
+    nvmlDevice_t device;
+    nvmlReturn_t result;
+    
+    result = nvmlInit();
+    if (result != NVML_SUCCESS) {
+        printf("NVML init failed, temperature monitoring disabled\n");
+        return;
+    }
+    
+    result = nvmlDeviceGetHandleByIndex(device_id, &device);
+    if (result != NVML_SUCCESS) {
+        nvmlShutdown();
+        return;
+    }
+    
+    while (keep_monitoring) {
+        unsigned int temp;
+        result = nvmlDeviceGetTemperature(device, NVML_TEMPERATURE_GPU, &temp);
+        if (result == NVML_SUCCESS) {
+            current_temp = temp;
+            if (temp > max_temp) max_temp = temp;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+    
+    nvmlShutdown();
+}
 
 // Non-fused approach: Three separate kernels
 __global__ void add_kernel(float *a, float *b, float *c, int n) {
@@ -143,22 +182,31 @@ __global__ void fused_mean_variance_normalize(float *input, float *output, int n
     }
 }
 
-// Host function to demonstrate usage
+// Host function to demonstrate usage with temperature monitoring
 void demonstrate_kernel_fusion() {
-    const int N = 1024 * 1024;  // 1M elements
+    const int N = 100 * 1024 * 1024;  // 100M elements for more heat generation
     const int bytes = N * sizeof(float);
+    const int num_runs = 50;  // Multiple runs to generate heat
+    
+    // Start temperature monitoring thread
+    std::thread temp_thread(monitor_temperature, 0);
+    std::this_thread::sleep_for(std::chrono::milliseconds(500)); // Let it initialize
+    
+    printf("Starting kernel fusion demo with temperature monitoring...\n");
+    printf("Initial GPU temperature: %.0f°C\n\n", current_temp.load());
     
     // Allocate host memory
     float *h_a = (float*)malloc(bytes);
     float *h_b = (float*)malloc(bytes);
     float *h_d = (float*)malloc(bytes);
-    float *h_result = (float*)malloc(bytes);
+    float *h_result_fused = (float*)malloc(bytes);
+    float *h_result_nonfused = (float*)malloc(bytes);
     
     // Initialize data
     for (int i = 0; i < N; i++) {
-        h_a[i] = 1.0f;
-        h_b[i] = 2.0f;
-        h_d[i] = 3.0f;
+        h_a[i] = 1.0f + (float)rand() / RAND_MAX;
+        h_b[i] = 2.0f + (float)rand() / RAND_MAX;
+        h_d[i] = 3.0f + (float)rand() / RAND_MAX;
     }
     
     // Allocate device memory
@@ -183,29 +231,92 @@ void demonstrate_kernel_fusion() {
     cudaEventCreate(&start);
     cudaEventCreate(&stop);
     
-    // Non-fused approach
+    float total_nonfused_time = 0;
+    float total_fused_time = 0;
+    
+    printf("Running non-fused kernels %d times...\n", num_runs);
+    float start_temp = current_temp.load();
+    
+    // Non-fused approach - multiple runs
     cudaEventRecord(start);
-    add_kernel<<<gridSize, blockSize>>>(d_a, d_b, d_c, N);
-    multiply_kernel<<<gridSize, blockSize>>>(d_c, d_d, N);
-    sqrt_kernel<<<gridSize, blockSize>>>(d_c, N);
+    for (int run = 0; run < num_runs; run++) {
+        add_kernel<<<gridSize, blockSize>>>(d_a, d_b, d_c, N);
+        multiply_kernel<<<gridSize, blockSize>>>(d_c, d_d, N);
+        sqrt_kernel<<<gridSize, blockSize>>>(d_c, N);
+        
+        if (run % 10 == 0) {
+            cudaDeviceSynchronize();
+            printf("  Run %d/50 - Temp: %.0f°C\n", run, current_temp.load());
+        }
+    }
     cudaEventRecord(stop);
     cudaEventSynchronize(stop);
     
     float nonFusedTime;
     cudaEventElapsedTime(&nonFusedTime, start, stop);
+    total_nonfused_time = nonFusedTime;
     
-    // Fused approach
+    float peak_temp_nonfused = max_temp.load();
+    printf("Non-fused peak temperature: %.0f°C (Δ%.0f°C)\n", peak_temp_nonfused, peak_temp_nonfused - start_temp);
+    printf("Non-fused total time: %.3f ms\n\n", nonFusedTime);
+    
+    // Cool down period
+    printf("Cooling down...\n");
+    std::this_thread::sleep_for(std::chrono::seconds(5));
+    
+    // Reset max temp for fused kernel test
+    max_temp = current_temp.load();
+    start_temp = current_temp.load();
+    
+    printf("Running fused kernel %d times...\n", num_runs);
+    
+    // Fused approach - multiple runs
     cudaEventRecord(start);
-    fused_add_mul_sqrt_kernel<<<gridSize, blockSize>>>(d_a, d_b, d_d, d_result, N);
+    for (int run = 0; run < num_runs; run++) {
+        fused_add_mul_sqrt_kernel<<<gridSize, blockSize>>>(d_a, d_b, d_d, d_result, N);
+        
+        if (run % 10 == 0) {
+            cudaDeviceSynchronize();
+            printf("  Run %d/50 - Temp: %.0f°C\n", run, current_temp.load());
+        }
+    }
     cudaEventRecord(stop);
     cudaEventSynchronize(stop);
     
     float fusedTime;
     cudaEventElapsedTime(&fusedTime, start, stop);
+    total_fused_time = fusedTime;
     
-    printf("Non-fused time: %.3f ms\n", nonFusedTime);
-    printf("Fused time: %.3f ms\n", fusedTime);
-    printf("Speedup: %.2fx\n", nonFusedTime / fusedTime);
+    float peak_temp_fused = max_temp.load();
+    printf("Fused peak temperature: %.0f°C (Δ%.0f°C)\n", peak_temp_fused, peak_temp_fused - start_temp);
+    printf("Fused total time: %.3f ms\n\n", fusedTime);
+    
+    // Copy one result back for verification
+    cudaMemcpy(h_result_fused, d_result, bytes, cudaMemcpyDeviceToHost);
+    cudaMemcpy(h_result_nonfused, d_c, bytes, cudaMemcpyDeviceToHost);
+    
+    // Verify results match
+    float max_diff = 0.0f;
+    for (int i = 0; i < 1000; i++) {  // Check first 1000 elements
+        float expected = sqrtf((h_a[i] + h_b[i]) * h_d[i]);
+        float diff = fabs(h_result_fused[i] - expected);
+        if (diff > max_diff) max_diff = diff;
+    }
+    
+    printf("=== Performance Summary ===\n");
+    printf("Non-fused time: %.3f ms (%.2f ms per run)\n", total_nonfused_time, total_nonfused_time / num_runs);
+    printf("Fused time: %.3f ms (%.2f ms per run)\n", total_fused_time, total_fused_time / num_runs);
+    printf("Speedup: %.2fx\n", total_nonfused_time / total_fused_time);
+    printf("Max error: %e\n\n", max_diff);
+    
+    printf("=== Temperature Summary ===\n");
+    printf("Non-fused peak temp: %.0f°C\n", peak_temp_nonfused);
+    printf("Fused peak temp: %.0f°C\n", peak_temp_fused);
+    printf("Temperature difference: %.0f°C\n", fabs(peak_temp_nonfused - peak_temp_fused));
+    
+    // Stop temperature monitoring
+    keep_monitoring = false;
+    temp_thread.join();
     
     // Clean up
     cudaFree(d_a);
@@ -216,12 +327,32 @@ void demonstrate_kernel_fusion() {
     free(h_a);
     free(h_b);
     free(h_d);
-    free(h_result);
+    free(h_result_fused);
+    free(h_result_nonfused);
     cudaEventDestroy(start);
     cudaEventDestroy(stop);
 }
 
 int main() {
+    // Check if NVML is available
+    nvmlReturn_t result = nvmlInit();
+    if (result != NVML_SUCCESS) {
+        printf("WARNING: NVML not available. Temperature monitoring disabled.\n");
+        printf("To enable temperature monitoring:\n");
+        printf("  Linux: Make sure libnvidia-ml.so is installed\n");
+        printf("  Windows: Make sure nvml.dll is in PATH\n\n");
+        printf("You can still monitor temperature externally using:\n");
+        printf("  watch -n 1 nvidia-smi\n\n");
+    } else {
+        nvmlShutdown();
+    }
+    
     demonstrate_kernel_fusion();
     return 0;
 }
+
+// Compile with:
+// nvcc -o kernel_fusion_temp kernel_fusion.cu -lnvidia-ml -std=c++11 -lpthread
+// 
+// If NVML linking fails, compile without temperature monitoring:
+// nvcc -o kernel_fusion kernel_fusion.cu -DNO_TEMP_MONITOR
