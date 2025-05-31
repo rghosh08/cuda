@@ -1,0 +1,3 @@
+Non-fused time: 0.294 ms
+Fused time: 0.017 ms
+Speedup: 16.85x
