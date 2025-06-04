@@ -27,15 +27,18 @@ int main() {
 
     auto start = std::chrono::high_resolution_clock::now();
 
-    // Perform matrix multiplication
     matmul(h_A, h_B, h_C, N);
 
     auto end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> duration = end - start;
 
-    std::chrono::duration<double, std::milli> duration = end - start;
+    double total_ops = 2.0 * N * N * N;
+    double flops = total_ops / duration.count();
 
-    std::cout << "Matrix multiplication completed in: " << duration.count() << " milliseconds\n";
-    std::cout << "Sample output C[0]: " << h_C[0] << std::endl;
+    std::cout << "Matrix multiplication time: " << duration.count() << " seconds\n";
+    std::cout << "Performance: " << flops / 1e9 << " GFLOPS\n";
+    std::cout << "Sample output C[0]: " << h_C[0] << "\n";
 
     return 0;
 }
+
