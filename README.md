@@ -36,6 +36,17 @@ Memory Hierarchy: Multiple levels of increasingly faster memory (registers → s
 * Image processing: 50-100x faster
 * Deep learning training: 10-50x faster
 
+## Different Generations of GPUs
+
+| GPU Type      | VRAM (GiB) | Memory bandwidth (VRAM-to-SRAM, TB/s) |
+|---------------|------------|---------------------------------------|
+| H100          | 80         | 3.35                                  |
+| A100 (80GB)   | 80         | 2                                     |
+| A100 (40GB)   | 40         | 2                                     |
+| A10           | 24         | 0.6                                   |
+| L4            | 24         | 0.3                                   |
+| T4            | 16         | 0.3                                   |
+
 ## GPU-CPU Interaction
 
  ![cpu_gpu_interaction](assets/images/cpu_gpu_interaction.jpg)
