@@ -7,7 +7,7 @@
 #include <atomic>
 
 #define LR 0.5f
-#define EPOCHS 1000
+#define EPOCHS 100000
 
 // Temperature monitoring globals
 std::atomic<bool> keep_monitoring(true);
