@@ -1,2 +1,7 @@
-Matrix multiplication completed in: 0.7065 milliseconds
+CUDA Version Output:
+Matrix multiplication completed in: 0.7021 milliseconds
 Sample output C[0]: 2048.00
+-e 
+C++ Version Output:
+Matrix multiplication completed in: 5865.21 milliseconds
+Sample output C[0]: 2048
