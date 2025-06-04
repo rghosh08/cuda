@@ -35,3 +35,7 @@ Memory Hierarchy: Multiple levels of increasingly faster memory (registers → s
 * Matrix multiplication: 100-1000x faster
 * Image processing: 50-100x faster
 * Deep learning training: 10-50x faster
+
+## GPU-CPU Interaction
+
+ ![Tux, the Linux mascot](/assets/images/tux.png)
