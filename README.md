@@ -49,4 +49,7 @@ Memory Hierarchy: Multiple levels of increasingly faster memory (registers → s
 
 ## GPU-CPU Interaction
 
- ![cpu_gpu_interaction](assets/images/cpu_gpu_interaction.jpg)
+![cpu_gpu_interaction](assets/images/cpu_gpu_interaction.jpg)
+
+## GPU Architecture
+![cpu_gpu_interaction](assets/images/gpu_architecture.jpg)
