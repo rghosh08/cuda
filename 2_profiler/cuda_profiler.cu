@@ -49,4 +49,3 @@ int main() {
     free(h_a); free(h_b); free(h_c);
     return 0;
 }
-

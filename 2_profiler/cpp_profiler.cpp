@@ -24,4 +24,3 @@ int main() {
     std::cout << "Time taken: " << diff.count() << " seconds\n";
     return 0;
 }
-

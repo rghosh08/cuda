@@ -1,3 +1,2 @@
-time with CUDA: 0.2143 ms
-
-time with cpp: 0.0666728 seconds
+Time taken (CUDA GPU): 35.4212 ms
+Time taken: 0.0707102 seconds
