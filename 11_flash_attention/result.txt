@@ -1,2 +1,2 @@
 Output sample [0]: 3.8415
-Execution time: 0.3303 ms
+Execution time: 0.3656 ms
