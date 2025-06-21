@@ -1,9 +1,9 @@
 CUDA Version Output:
-Execution time: 0.6761 ms
-Performance: 3176.1497 GFLOPS
+Execution time: 43.5221 ms
+Performance: 49.3423 GFLOPS
 Sample output C[0]: 2048.00
--e 
+
 C++ Version Output:
-Matrix multiplication time: 5.66806 seconds
-Performance: 0.378875 GFLOPS
+Matrix multiplication time: 7.05181 seconds
+Performance: 0.304529 GFLOPS
 Sample output C[0]: 2048
