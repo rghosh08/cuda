@@ -1,7 +1,7 @@
 #include <cuda_runtime.h>
 #include <cstdio>
 
-#define N 1024
+#define N 65536
 
 __global__ void matmul(float *A, float *B, float *C, int width) {
     int row = blockIdx.y * blockDim.y + threadIdx.y;

@@ -1,11 +1,13 @@
 #include <iostream>
 #include <vector>
 #include <chrono>
+#include <omp.h>  // Include OpenMP
 
-const int N = 4096;
+const int N = 8192;
 
-// Matrix multiplication function
+// Multithreaded matrix multiplication
 void matmul(const std::vector<float> &A, const std::vector<float> &B, std::vector<float> &C, int width) {
+    #pragma omp parallel for collapse(2)
     for (int row = 0; row < width; ++row) {
         for (int col = 0; col < width; ++col) {
             float val = 0.0f;
@@ -18,12 +20,11 @@ void matmul(const std::vector<float> &A, const std::vector<float> &B, std::vecto
 }
 
 int main() {
-    size_t bytes = N * N;
+    size_t size = N * N;
 
-    // Allocate host memory
-    std::vector<float> h_A(bytes, 1.0f);
-    std::vector<float> h_B(bytes, 2.0f);
-    std::vector<float> h_C(bytes, 0.0f);
+    std::vector<float> h_A(size, 1.0f);
+    std::vector<float> h_B(size, 2.0f);
+    std::vector<float> h_C(size, 0.0f);
 
     auto start = std::chrono::high_resolution_clock::now();
 
