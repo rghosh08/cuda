@@ -43,7 +43,7 @@ struct Config {
     static const int INPUT_CHANNELS = 3;
     static const int NUM_CLASSES = 1000;
     static const int BATCH_SIZE = 512;  // Reduced for compatibility
-    static const int NUM_EPOCHS = 10;
+    static const int NUM_EPOCHS = 1000;
     static const int SAMPLES_PER_EPOCH = 5120;  // 10 batches per epoch for demo
     static const int LOG_INTERVAL = 2;
 };

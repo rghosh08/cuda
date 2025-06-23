@@ -1,0 +1,76 @@
+nohup: ignoring input
+🚀 Starting...
+Simple AlexNet Training (No cuDNN Required)
+====================================================
+
+GPU: NVIDIA A10G
+Memory: 22515 MB
+Compute Capability: 8.6
+
+Initializing data loader...
+DataLoader initialized: 10 batches per epoch
+Initializing SimpleAlexNet...
+CUDA initialized (no cuDNN required)
+Memory allocated successfully
+Weights initialized
+SimpleAlexNet initialized for 10-epoch training
+
+=== Memory Usage ===
+Total GPU Memory: 22515 MB
+Used Memory: 2486 MB
+Free Memory: 20029 MB
+Utilization: 11.0%
+====================
+
+
+=== Demo Training Info ===
+• This is a simplified AlexNet demo
+• Uses custom CUDA kernels (no cuDNN)
+• Smaller dataset for quick demonstration
+• Expected time: 15-25 minutes
+• Perfect for testing your A10 setup!
+===========================
+
+Press Enter to start training...
+============================================================
+  STARTING 10-EPOCH SIMPLE ALEXNET TRAINING
+============================================================
+
+Training Configuration:
+- Epochs: 300
+- Batch Size: 512
+- Batches per Epoch: 10
+- Learning Rate: 0.0
+- Architecture: Simplified (Conv1+Pool1+FC1+FC2+FC3)
+- Expected Time: 15-25 minutes
+
+------------------------------------------------------------
+EPOCH | BATCH | LOSS    | TIME/BATCH | THROUGHPUT
+------------------------------------------------------------
+    1 |     2 |  10.909 |        737ms |       695/s
+    1 |     4 |   9.500 |        737ms |       695/s
+    1 |     6 |   8.877 |        737ms |       695/s
+    1 |     8 |   8.743 |        737ms |       695/s
+    1 |    10 |   8.346 |        737ms |       695/s
+------------------------------------------------------------
+Epoch 1 completed in 7s, Avg Loss: 9.5525
+------------------------------------------------------------
+    2 |     2 |   8.334 |        737ms |       695/s
+    2 |     4 |   8.093 |        736ms |       696/s
+    2 |     6 |   8.083 |        737ms |       695/s
+    2 |     8 |   8.103 |        736ms |       696/s
+    2 |    10 |   7.878 |        736ms |       696/s
+------------------------------------------------------------
+Epoch 2 completed in 7s, Avg Loss: 8.1207
+------------------------------------------------------------
+    3 |     2 |   7.950 |        736ms |       696/s
+    3 |     4 |   7.938 |        737ms |       695/s
+    3 |     6 |   7.827 |        737ms |       695/s
+    3 |     8 |   7.798 |        737ms |       695/s
+    3 |    10 |   7.729 |        736ms |       696/s
+------------------------------------------------------------
+Epoch 3 completed in 7s, Avg Loss: 7.8606
+------------------------------------------------------------
+Command terminated by signal 2
+21.31user 2.34system 0:23.65elapsed 100%CPU (0avgtext+0avgdata 534148maxresident)k
+0inputs+0outputs (0major+103137minor)pagefaults 0swaps

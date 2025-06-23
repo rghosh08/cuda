@@ -1,0 +1,121 @@
+nohup: ignoring input
+=== Fixed Paged Attention CUDA Implementation ===
+System Information:
+  CUDA Devices: 1
+  Device 0: NVIDIA A10G
+    Compute Capability: 8.6
+    Total Global Memory: 21 GB
+    Multiprocessors: 80
+    Max Threads per Block: 1024
+    Max Shared Memory per Block: 48 KB
+
+🧪 Running Simple Test 🧪
+
+GPU Memory allocation:
+  Key/Value cache: 10240 MB
+  Page table: 4 MB
+  Attention scores buffer: 0.15625 MB
+  Total GPU memory: 10244.2 MB
+✅ PagedFlashAttention CUDA initialized successfully!
+Generating test data with pattern: simple
+  Sequence lengths: 16 20 24 28 32 36 40 44 48 52 56 60 64 68 72 76 80 84 88 92 96 100 104 108 112 116 120 124 128 132 136 140 
+Updating KV cache for sequence 0 (length: 16)
+  Allocated 1 pages for sequence 0: 2047 
+  Updated 1 pages with 16 tokens
+Updating KV cache for sequence 1 (length: 20)
+  Allocated 1 pages for sequence 1: 2046 
+  Updated 1 pages with 20 tokens
+Updating KV cache for sequence 2 (length: 24)
+  Allocated 1 pages for sequence 2: 2045 
+  Updated 1 pages with 24 tokens
+Updating KV cache for sequence 3 (length: 28)
+  Allocated 1 pages for sequence 3: 2044 
+  Updated 1 pages with 28 tokens
+Updating KV cache for sequence 4 (length: 32)
+  Allocated 1 pages for sequence 4: 2043 
+  Updated 1 pages with 32 tokens
+Updating KV cache for sequence 5 (length: 36)
+  Allocated 1 pages for sequence 5: 2042 
+  Updated 1 pages with 36 tokens
+Updating KV cache for sequence 6 (length: 40)
+  Allocated 1 pages for sequence 6: 2041 
+  Updated 1 pages with 40 tokens
+Updating KV cache for sequence 7 (length: 44)
+  Allocated 1 pages for sequence 7: 2040 
+  Updated 1 pages with 44 tokens
+Updating KV cache for sequence 8 (length: 48)
+  Allocated 1 pages for sequence 8: 2039 
+  Updated 1 pages with 48 tokens
+Updating KV cache for sequence 9 (length: 52)
+  Allocated 1 pages for sequence 9: 2038 
+  Updated 1 pages with 52 tokens
+Updating KV cache for sequence 10 (length: 56)
+  Allocated 1 pages for sequence 10: 2037 
+  Updated 1 pages with 56 tokens
+Updating KV cache for sequence 11 (length: 60)
+  Allocated 1 pages for sequence 11: 2036 
+  Updated 1 pages with 60 tokens
+Updating KV cache for sequence 12 (length: 64)
+  Allocated 1 pages for sequence 12: 2035 
+  Updated 1 pages with 64 tokens
+Updating KV cache for sequence 13 (length: 68)
+  Allocated 1 pages for sequence 13: 2034 
+  Updated 1 pages with 68 tokens
+Updating KV cache for sequence 14 (length: 72)
+  Allocated 1 pages for sequence 14: 2033 
+  Updated 1 pages with 72 tokens
+Updating KV cache for sequence 15 (length: 76)
+  Allocated 1 pages for sequence 15: 2032 
+  Updated 1 pages with 76 tokens
+Updating KV cache for sequence 16 (length: 80)
+  Allocated 1 pages for sequence 16: 2031 
+  Updated 1 pages with 80 tokens
+Updating KV cache for sequence 17 (length: 84)
+  Allocated 1 pages for sequence 17: 2030 
+  Updated 1 pages with 84 tokens
+Updating KV cache for sequence 18 (length: 88)
+  Allocated 1 pages for sequence 18: 2029 
+  Updated 1 pages with 88 tokens
+Updating KV cache for sequence 19 (length: 92)
+  Allocated 1 pages for sequence 19: 2028 
+  Updated 1 pages with 92 tokens
+Updating KV cache for sequence 20 (length: 96)
+  Allocated 1 pages for sequence 20: 2027 
+  Updated 1 pages with 96 tokens
+Updating KV cache for sequence 21 (length: 100)
+  Allocated 1 pages for sequence 21: 2026 
+  Updated 1 pages with 100 tokens
+Updating KV cache for sequence 22 (length: 104)
+  Allocated 1 pages for sequence 22: 2025 
+  Updated 1 pages with 104 tokens
+Updating KV cache for sequence 23 (length: 108)
+  Allocated 1 pages for sequence 23: 2024 
+  Updated 1 pages with 108 tokens
+Updating KV cache for sequence 24 (length: 112)
+  Allocated 1 pages for sequence 24: 2023 
+  Updated 1 pages with 112 tokens
+Updating KV cache for sequence 25 (length: 116)
+  Allocated 1 pages for sequence 25: 2022 
+  Updated 1 pages with 116 tokens
+Updating KV cache for sequence 26 (length: 120)
+  Allocated 1 pages for sequence 26: 2021 
+  Updated 1 pages with 120 tokens
+Updating KV cache for sequence 27 (length: 124)
+  Allocated 1 pages for sequence 27: 2020 
+  Updated 1 pages with 124 tokens
+Updating KV cache for sequence 28 (length: 128)
+  Allocated 1 pages for sequence 28: 2019 
+  Updated 1 pages with 128 tokens
+Updating KV cache for sequence 29 (length: 132)
+  Allocated 2 pages for sequence 29: 2018 2017 
+  Updated 2 pages with 132 tokens
+Updating KV cache for sequence 30 (length: 136)
+  Allocated 2 pages for sequence 30: 2016 2015 
+  Updated 2 pages with 136 tokens
+Updating KV cache for sequence 31 (length: 140)
+  Allocated 2 pages for sequence 31: 2014 2013 
+  Updated 2 pages with 140 tokens
+Running comprehensive attention computation...
+  Batch size: 32
+  Num heads: 40
+  Head dim: 128

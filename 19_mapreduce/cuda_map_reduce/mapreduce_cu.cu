@@ -1,35 +1,6 @@
-#include <cuda_runtime.h>
-#include <device_launch_parameters.h>
-#include <thrust/device_vector.h>
-#include <thrust/host_vector.h>
-#include <thrust/sort.h>
-#include <thrust/reduce.h>
-#include <thrust/functional.h>
-#include <thrust/iterator/zip_iterator.h>
-#include <thrust/tuple.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <time.h>
+#include "mapreduce_cu.h"
 
-#define CUDA_CHECK(call) \
-    do { \
-        cudaError_t error = call; \
-        if (error != cudaSuccess) { \
-            printf("CUDA error at %s:%d - %s\n", __FILE__, __LINE__, cudaGetErrorString(error)); \
-            exit(1); \
-        } \
-    } while(0)
-
-#define BLOCK_SIZE 256
-#define MAX_WORDS 10000
-
-struct KeyValue {
-    int key;
-    int value;
-};
-
-// Custom MapReduce kernels
+// CUDA Kernels Implementation
 __global__ void map_kernel(int* input, KeyValue* mapped, int n) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx < n) {
@@ -57,6 +28,7 @@ __global__ void compact_results(int* counts, KeyValue* output, int max_keys, int
     }
 }
 
+// MapReduce Implementations
 void custom_mapreduce(int* data, int n, KeyValue* results, int* num_results) {
     KeyValue *d_mapped, *d_results;
     int *d_data, *d_counts, *d_result_count;
@@ -122,6 +94,7 @@ void thrust_mapreduce(int* data, int n, KeyValue* results, int* num_results) {
     }
 }
 
+// Test Functions
 void test_word_count() {
     printf("=== WORD COUNT TEST ===\n");
     
@@ -152,10 +125,6 @@ void test_word_count() {
     printf("Custom Time: %.3f ms\n\n", custom_time);
     
     // Test Thrust implementation
-    int *d_words;
-    CUDA_CHECK(cudaMalloc(&d_words, n * sizeof(int)));
-    CUDA_CHECK(cudaMemcpy(d_words, words, n * sizeof(int), cudaMemcpyHostToDevice));
-    
     cudaEventRecord(start);
     thrust_mapreduce(words, n, results, &num_results);
     cudaEventRecord(stop);
@@ -170,29 +139,32 @@ void test_word_count() {
     }
     printf("Thrust Time: %.3f ms\n\n", thrust_time);
     
-    cudaFree(d_words);
     cudaEventDestroy(start);
     cudaEventDestroy(stop);
 }
 
-void test_large_dataset(int n) {
+void test_large_dataset(long long n) {
     printf("=== LARGE DATASET PERFORMANCE TEST ===\n");
-    printf("Dataset size: %d elements\n", n);
+    printf("Dataset size: %lld elements\n", n);
+    
+    // Check memory requirements
+    check_memory_requirements(n);
     
     int* data = (int*)malloc(n * sizeof(int));
     if (!data) {
-        printf("Error: Failed to allocate memory for %d elements\n", n);
+        double memory_gb = (n * sizeof(int)) / (1024.0 * 1024.0 * 1024.0);
+        printf("Error: Failed to allocate memory for %lld elements (%.2f GB)\n", n, memory_gb);
         return;
     }
     
     // Generate random data
     srand(time(NULL));
-    int max_unique_keys = (n < 10000) ? n : 10000;  // Limit unique keys to prevent excessive memory usage
-    for (int i = 0; i < n; i++) {
+    long long max_unique_keys = (n < 10000) ? n : 10000;  // Limit unique keys to prevent excessive memory usage
+    for (long long i = 0; i < n; i++) {
         data[i] = rand() % max_unique_keys;
     }
     
-    printf("Unique keys: %d\n", max_unique_keys);
+    printf("Unique keys: %lld\n", max_unique_keys);
     
     KeyValue* results = (KeyValue*)malloc(max_unique_keys * sizeof(KeyValue));
     if (!results) {
@@ -201,6 +173,14 @@ void test_large_dataset(int n) {
         return;
     }
     
+    // Check if dataset size exceeds CUDA kernel limitations
+    if (n > INT_MAX) {
+        printf("Warning: Dataset size (%lld) exceeds CUDA kernel index limits.\n", n);
+        printf("Processing first %d elements only.\n", INT_MAX);
+        n = INT_MAX;
+    }
+    
+    int dataset_size = (int)n;  // Safe cast after check above
     int num_results;
     
     // Performance comparison
@@ -211,7 +191,7 @@ void test_large_dataset(int n) {
     // Test custom implementation
     printf("Running custom MapReduce...\n");
     cudaEventRecord(start);
-    custom_mapreduce(data, n, results, &num_results);
+    custom_mapreduce(data, dataset_size, results, &num_results);
     cudaEventRecord(stop);
     cudaEventSynchronize(stop);
     
@@ -222,7 +202,7 @@ void test_large_dataset(int n) {
     // Test Thrust implementation
     printf("Running Thrust MapReduce...\n");
     cudaEventRecord(start);
-    thrust_mapreduce(data, n, results, &num_results);
+    thrust_mapreduce(data, dataset_size, results, &num_results);
     cudaEventRecord(stop);
     cudaEventSynchronize(stop);
     
@@ -232,7 +212,7 @@ void test_large_dataset(int n) {
     
     if (thrust_time > 0) {
         printf("Speedup: %.2fx\n", custom_time / thrust_time);
-        printf("Throughput: %.2f M elements/sec\n", n / (thrust_time * 1000.0));
+        printf("Throughput: %.2f M elements/sec\n", dataset_size / (thrust_time * 1000.0));
     }
     
     free(data);
@@ -241,35 +221,71 @@ void test_large_dataset(int n) {
     cudaEventDestroy(stop);
 }
 
+// Utility Functions
 void print_usage(const char* program_name) {
     printf("Usage: %s [dataset_size]\n", program_name);
     printf("  dataset_size: Number of elements for large dataset test (default: 10000000)\n");
-    printf("                Must be between 1000 and 100000000\n");
+    printf("                Must be between 1000 and 100000000000 (100B)\n");
+    printf("                Note: Large datasets require significant GPU memory\n");
     printf("\nExamples:\n");
-    printf("  %s           # Run with default 10M elements\n", program_name);
-    printf("  %s 1000000   # Run with 1M elements\n", program_name);
-    printf("  %s 50000000  # Run with 50M elements\n", program_name);
+    printf("  %s                # Run with default 10M elements\n", program_name);
+    printf("  %s 1000000        # Run with 1M elements\n", program_name);
+    printf("  %s 50000000       # Run with 50M elements\n", program_name);
+    printf("  %s 1000000000     # Run with 1B elements (~4GB memory)\n", program_name);
+    printf("  %s 10000000000    # Run with 10B elements (~40GB memory)\n", program_name);
 }
 
-int main(int argc, char** argv) {
-    printf("CUDA MapReduce Implementation\n");
-    printf("=============================\n\n");
-    
-    // Check CUDA device
+void print_device_info() {
     int device_count;
     CUDA_CHECK(cudaGetDeviceCount(&device_count));
     if (device_count == 0) {
         printf("No CUDA devices found!\n");
-        return 1;
+        exit(1);
     }
     
     cudaDeviceProp prop;
     CUDA_CHECK(cudaGetDeviceProperties(&prop, 0));
     printf("Using GPU: %s\n", prop.name);
-    printf("Compute Capability: %d.%d\n\n", prop.major, prop.minor);
+    printf("Compute Capability: %d.%d\n", prop.major, prop.minor);
+    printf("Global Memory: %.2f GB\n", prop.totalGlobalMem / (1024.0 * 1024.0 * 1024.0));
+    printf("Max Threads per Block: %d\n", prop.maxThreadsPerBlock);
+    printf("Max Grid Size: (%d, %d, %d)\n\n", 
+           prop.maxGridSize[0], prop.maxGridSize[1], prop.maxGridSize[2]);
+}
+
+void check_memory_requirements(long long n) {
+    double memory_gb = (n * sizeof(int)) / (1024.0 * 1024.0 * 1024.0);
+    printf("Memory required: %.2f GB\n", memory_gb);
+    
+    // Get available GPU memory
+    size_t free_mem, total_mem;
+    CUDA_CHECK(cudaMemGetInfo(&free_mem, &total_mem));
+    double free_gb = free_mem / (1024.0 * 1024.0 * 1024.0);
+    double total_gb = total_mem / (1024.0 * 1024.0 * 1024.0);
+    
+    printf("GPU Memory: %.2f GB free / %.2f GB total\n", free_gb, total_gb);
+    
+    if (memory_gb > free_gb * 0.8) {  // Use 80% threshold for safety
+        printf("⚠️  Warning: Dataset requires %.2f GB but only %.2f GB available!\n", 
+               memory_gb, free_gb);
+        printf("   Consider using a smaller dataset or freeing GPU memory.\n");
+    } else if (memory_gb > total_gb * 0.5) {
+        printf("⚡ Info: Large dataset will use %.1f%% of GPU memory.\n", 
+               (memory_gb / total_gb) * 100.0);
+    }
+    printf("\n");
+}
+
+// Main Function
+int main(int argc, char** argv) {
+    printf("CUDA MapReduce Implementation\n");
+    printf("=============================\n\n");
+    
+    // Print device information
+    print_device_info();
     
     // Parse command line arguments
-    int dataset_size = 10000000;  // Default 10M elements
+    long long dataset_size = 10000000LL;  // Default 10M elements
     
     if (argc == 2) {
         if (strcmp(argv[1], "-h") == 0 || strcmp(argv[1], "--help") == 0) {
@@ -278,16 +294,16 @@ int main(int argc, char** argv) {
         }
         
         char* endptr;
-        long parsed_size = strtol(argv[1], &endptr, 10);
+        long long parsed_size = strtoll(argv[1], &endptr, 10);
         
-        if (*endptr != '\0' || parsed_size < 1000 || parsed_size > 100000000) {
+        if (*endptr != '\0' || parsed_size < 1000 || parsed_size > 100000000000LL) {
             printf("Error: Invalid dataset size '%s'\n", argv[1]);
-            printf("Dataset size must be between 1,000 and 100,000,000\n\n");
+            printf("Dataset size must be between 1,000 and 100,000,000,000 (100B)\n\n");
             print_usage(argv[0]);
             return 1;
         }
         
-        dataset_size = (int)parsed_size;
+        dataset_size = parsed_size;
     } else if (argc > 2) {
         printf("Error: Too many arguments\n\n");
         print_usage(argv[0]);

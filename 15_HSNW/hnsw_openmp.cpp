@@ -1,12 +1,19 @@
 #include <iostream>
 #include <vector>
-#include <cmath>
 #include <random>
 #include <chrono>
+#include <cmath>
+#include <omp.h>
+#include <cstdlib>
 
-int main() {
-    const int num_nodes = 1000000;
-    const int dim = 128;
+int main(int argc, char *argv[]) {
+    if (argc != 3) {
+        std::cerr << "Usage: " << argv[0] << " [num_nodes] [dim]\n";
+        return 1;
+    }
+
+    size_t num_nodes = std::stoull(argv[1]);
+    size_t dim = std::stoull(argv[2]);
 
     std::vector<float> nodes(num_nodes * dim);
     std::vector<float> query(dim);
@@ -21,9 +28,10 @@ int main() {
 
     auto start = std::chrono::high_resolution_clock::now();
 
-    for (int idx = 0; idx < num_nodes; ++idx) {
+    #pragma omp parallel for
+    for (size_t idx = 0; idx < num_nodes; ++idx) {
         float distance = 0.0f;
-        for (int d = 0; d < dim; ++d) {
+        for (size_t d = 0; d < dim; ++d) {
             float diff = nodes[idx * dim + d] - query[d];
             distance += diff * diff;
         }
@@ -35,7 +43,7 @@ int main() {
 
     // Print sample distances
     std::cout << "Sample distances computed:\n";
-    for (int i = 0; i < 5; i++) {
+    for (int i = 0; i < std::min<size_t>(5, num_nodes); i++) {
         std::cout << "Node " << i << ": " << distances[i] << '\n';
     }
 
@@ -43,4 +51,3 @@ int main() {
 
     return 0;
 }
-

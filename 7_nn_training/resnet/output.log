@@ -1,0 +1,7 @@
+nohup: ignoring input
+ResNet-18 Implementation with OpenMP
+Using 16 OpenMP threads
+Input shape: [2, 3, 224, 224]
+Output shape: [2, 1000]
+Inference time: 1025.24 ms
+First 10 predictions for sample 0: -0.602559 -0.38264 -0.365949 -2.16298 1.59628 -0.939131 -1.13342 0.0743654 -1.08978 0.208693 
