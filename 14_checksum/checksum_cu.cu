@@ -2,7 +2,7 @@
 #include <cstdio>
 #include <cstdlib>
 
-#define BLOCK_SIZE 256
+#define BLOCK_SIZE 512
 
 // CUDA Kernel: Compute simple checksum
 __global__ void computeChecksum(unsigned char* data, size_t size, unsigned int* checksum) {

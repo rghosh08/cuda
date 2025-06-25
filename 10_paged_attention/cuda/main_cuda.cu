@@ -38,19 +38,18 @@ void generate_test_data(
     int batch_size,
     int num_heads,
     int head_dim,
+    int max_seq_len,
     std::vector<int>& seq_lengths,
     std::vector<float>& keys,
     std::vector<float>& values,
     std::vector<float>& queries
 ) {
-    std::cout << "Generating test data with pattern: simple" << std::endl;
+    std::cout << "Generating test data with pattern: full context" << std::endl;
     
-    // Generate sequence lengths
-    seq_lengths.resize(batch_size);
+    // Set all sequence lengths to max_seq_len
+    seq_lengths.resize(batch_size, max_seq_len);
     std::cout << "  Sequence lengths: ";
     for (int i = 0; i < batch_size; i++) {
-        seq_lengths[i] = 16 + i * 4;  // 16, 20, 24, ..., etc.
-        if (seq_lengths[i] > 120) seq_lengths[i] = 120;  // Cap at 120 for safety
         std::cout << seq_lengths[i] << " ";
     }
     std::cout << std::endl;
@@ -97,6 +96,7 @@ void run_test() {
         attention.get_config().batch_size,
         attention.get_config().num_heads,
         attention.get_config().head_dim,
+        attention.get_config().max_seq_len,
         seq_lengths,
         keys,
         values,
@@ -120,6 +120,12 @@ void run_test() {
         
         key_offset += seq_len * attention.get_config().num_heads * attention.get_config().head_dim;
     }
+    
+    // Print KV cache usage
+    int total_pages_used = attention.get_total_pages_used();
+    int total_pages = attention.get_config().num_pages;
+    std::cout << "KV cache usage: " << total_pages_used << " / " << total_pages << " pages used ("
+              << (100.0 * total_pages_used / total_pages) << "%)" << std::endl;
     
     // Allocate output buffer
     std::vector<float> outputs(attention.get_config().batch_size * 
@@ -160,13 +166,34 @@ void run_test() {
     }
 }
 
+// Function to print the configuration
+void print_config(const paged_attention::PagedAttentionConfig& config) {
+    std::cout << "PagedAttentionConfig:" << std::endl;
+    std::cout << "  batch_size: " << config.batch_size << std::endl;
+    std::cout << "  num_heads: " << config.num_heads << std::endl;
+    std::cout << "  head_dim: " << config.head_dim << std::endl;
+    std::cout << "  max_seq_len: " << config.max_seq_len << std::endl;
+    std::cout << "  page_size: " << config.page_size << std::endl;
+    std::cout << "  num_pages: " << config.num_pages << std::endl;
+    std::cout << "  recycle_pages: " << (config.recycle_pages ? "true" : "false") << std::endl;
+}
+
 // Main function
 int main() {
+    auto start = std::chrono::high_resolution_clock::now();
+
     // Detect system capabilities
     detect_system_capabilities();
     
+    // Print configuration
+    print_config(paged_attention::DEFAULT_CONFIG);
+    
     // Run the test
     run_test();
+
+    auto end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> elapsed = end - start;
+    std::cout << "Total execution time: " << elapsed.count() << " seconds" << std::endl;
     
     return 0;
 }

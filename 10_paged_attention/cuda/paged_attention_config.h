@@ -15,12 +15,12 @@ struct PagedAttentionConfig {
 
 // Minimal configuration that will definitely work
 constexpr PagedAttentionConfig DEFAULT_CONFIG = {
-    .batch_size = 2,
-    .num_heads = 20,
-    .head_dim = 8,
-    .max_seq_len = 1048576,
+    .batch_size = 64, // [ 2, 4, 8, 16, 32, 64]
+    .num_heads = 32,
+    .head_dim = 64,
+    .max_seq_len = 512, // [512, 1024, 2048, 4096, 8192]
     .page_size = 16,
-    .num_pages = 32,
+    .num_pages = 2048, 
     .recycle_pages = true
 };
 

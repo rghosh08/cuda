@@ -68,6 +68,15 @@ public:
     
     // Debug helpers
     void print_memory_usage() const;
+    
+    // Get total pages used (for KV cache usage monitoring)
+    int get_total_pages_used() const {
+        int total = 0;
+        for (const auto& mapping : seq_to_page_mapping) {
+            total += mapping.size();
+        }
+        return total;
+    }
 };
 
 } // namespace paged_attention

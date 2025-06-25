@@ -1,8 +1,8 @@
-| blockIdx.x | threadIdx.x | blockDim.x | threadId |
 | 1          | 0           | 4          | 4        |
 | 1          | 1           | 4          | 5        |
 | 1          | 2           | 4          | 6        |
 | 1          | 3           | 4          | 7        |
+| blockIdx.x | threadIdx.x | blockDim.x | threadId |
 |------------|-------------|------------|----------|
 | 0          | 0           | 4          | 0        |
 | 0          | 1           | 4          | 1        |

@@ -16,7 +16,7 @@ int main() {
 
     // Initialize data (simulate read from storage)
     for (size_t i = 0; i < dataSize; ++i)
-        data[i] = rand() % 256;
+        data[i] = rand() % 512;
 
     const unsigned int num_threads = std::thread::hardware_concurrency();
     std::vector<std::thread> threads(num_threads);

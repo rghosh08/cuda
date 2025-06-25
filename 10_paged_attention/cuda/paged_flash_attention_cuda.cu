@@ -67,46 +67,35 @@ __global__ void simple_attention_kernel(
     int page_size,
     float scale
 ) {
-    // Each thread handles one output element
     int batch_idx = blockIdx.x;
     int head_idx = blockIdx.y;
     int dim_idx = threadIdx.x;
-    
     if (batch_idx >= batch_size || head_idx >= num_heads || dim_idx >= head_dim) {
         return;
     }
-    
     int seq_len = seq_lengths[batch_idx];
     if (seq_len <= 0) {
         return;
     }
-    
-    // Query element for this thread
+    // Use global memory for scores
+    float* scores = (float*)malloc(seq_len * sizeof(float));
+    if (!scores) {
+        if (dim_idx == 0 && head_idx == 0 && batch_idx == 0) {
+            printf("[ERROR] Failed to allocate global memory for scores (seq_len=%d)\n", seq_len);
+        }
+        return;
+    }
     int q_idx = (batch_idx * num_heads + head_idx) * head_dim + dim_idx;
-    //float query_val = queries[q_idx];
-    
-    // Output element for this thread
     int out_idx = q_idx;
-    
-    // Initialize accumulator to zero
     float output_val = 0.0f;
-    
-    // Compute dot products and scores on CPU (moved to host)
-    float scores[128]; // Assuming max sequence length is 128
     float max_score = -INFINITY;
-    
-    // First pass: compute scores and find max
     for (int token_idx = 0; token_idx < seq_len; token_idx++) {
-        // Get page and offset
         int page_idx = page_table[batch_idx * max_seq_len + token_idx];
         if (page_idx < 0) {
             scores[token_idx] = -INFINITY;
             continue;
         }
-        
         int offset = token_idx % page_size;
-        
-        // Compute dot product for this token
         float dot_product = 0.0f;
         for (int d = 0; d < head_dim; d++) {
             int k_idx = (page_idx * page_size + offset) * num_heads * head_dim + 
@@ -114,46 +103,31 @@ __global__ void simple_attention_kernel(
             int q_d_idx = (batch_idx * num_heads + head_idx) * head_dim + d;
             dot_product += queries[q_d_idx] * key_cache[k_idx];
         }
-        
-        // Compute score
         float score = dot_product * scale;
         scores[token_idx] = score;
-        
-        // Update max score
         if (score > max_score) {
             max_score = score;
         }
     }
-    
-    // Second pass: compute softmax and weighted sum
     float sum_exp = 0.0f;
-    
     for (int token_idx = 0; token_idx < seq_len; token_idx++) {
-        // Skip tokens with -infinity scores
         if (scores[token_idx] == -INFINITY) {
             continue;
         }
-        
-        // Get page and offset
         int page_idx = page_table[batch_idx * max_seq_len + token_idx];
         int offset = token_idx % page_size;
-        
-        // Compute exp(score - max_score)
         float exp_score = expf(scores[token_idx] - max_score);
         sum_exp += exp_score;
-        
-        // Get value and accumulate weighted sum
         int v_idx = (page_idx * page_size + offset) * num_heads * head_dim + 
                    head_idx * head_dim + dim_idx;
         output_val += exp_score * value_cache[v_idx];
     }
-    
-    // Normalize and write output
     if (sum_exp > 0.0f) {
         outputs[out_idx] = output_val / sum_exp;
     } else {
         outputs[out_idx] = 0.0f;
     }
+    free(scores);
 }
 
 PagedFlashAttentionCUDA::PagedFlashAttentionCUDA(const PagedAttentionConfig& config)
@@ -463,6 +437,16 @@ bool PagedFlashAttentionCUDA::update_kv_cache(
     std::cout << "  Updated " << allocated_pages.size() << " pages with " 
               << seq_len << " tokens" << std::endl;
     
+    // After updating KV cache for all sequences
+    std::cout << "Total pages allocated after batch: ";
+    int total_pages = 0;
+    for (const auto& mapping : seq_to_page_mapping) {
+        total_pages += mapping.size();
+    }
+    std::cout << total_pages << " / " << config.num_pages << " pages used." << std::endl;
+    
+    print_memory_usage();
+    
     return true;
 }
 
@@ -531,10 +515,9 @@ bool PagedFlashAttentionCUDA::compute_attention(
     // Launch kernel
     dim3 grid(config.batch_size, config.num_heads);
     dim3 block(config.head_dim);
-    
+    size_t shared_mem_size = config.max_seq_len * sizeof(float);
     std::cout << "  Launching kernel..." << std::endl;
-    
-    simple_attention_kernel<<<grid, block>>>(
+    simple_attention_kernel<<<grid, block, shared_mem_size>>>(
         d_key_cache,
         d_value_cache,
         d_queries,
@@ -548,7 +531,14 @@ bool PagedFlashAttentionCUDA::compute_attention(
         config.page_size,
         scale
     );
-    
+    err = cudaGetLastError();
+    if (err != cudaSuccess) {
+        std::cerr << "Error launching attention kernel: " << cudaGetErrorString(err) << std::endl;
+        cudaFree(d_queries);
+        cudaFree(d_seq_lengths);
+        cudaFree(d_outputs);
+        return false;
+    }
     err = cudaDeviceSynchronize();
     if (err != cudaSuccess) {
         std::cerr << "Error in attention kernel: " << cudaGetErrorString(err) << std::endl;
@@ -557,7 +547,6 @@ bool PagedFlashAttentionCUDA::compute_attention(
         cudaFree(d_outputs);
         return false;
     }
-    
     std::cout << "  Kernel completed successfully" << std::endl;
     
     // Copy results back to host
